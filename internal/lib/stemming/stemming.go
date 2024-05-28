@@ -25,10 +25,19 @@ func (s *Stemmer) StemWithLangDetection(text string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to detect language: %w", err)
 	}
-	return s.Stem(text, language), nil
+	return stemString(text, language), nil
 }
 
-func (s *Stemmer) Stem(text string, language iso6391.ISO6391) []string {
+func (s *Stemmer) Stem(text string, language string) []string {
+	iso6391Language, err := iso6391.NewISO6391(language)
+	if err != nil {
+		// Fallback to English if language detection fails or is unsupported
+		iso6391Language, _ = iso6391.NewISO6391("en")
+	}
+	return stemString(text, iso6391Language)
+}
+
+func stemString(text string, language iso6391.ISO6391) []string {
 	words := strings.Fields(text)
 	words = RemoveStopWords(words, language)
 	return stemWords(words, language)
