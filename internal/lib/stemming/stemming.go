@@ -8,38 +8,45 @@ import (
 	"github.com/raf-nr/xkcd-finder/internal/lib/iso6391"
 )
 
+type LanguageDetector interface {
+	Detect(text string) (iso6391.ISO6391, error)
+}
+
 type Stemmer struct {
-	language *iso6391.ISO6391
+	langDetector LanguageDetector
+}
+
+func NewStemmer(detector LanguageDetector) *Stemmer {
+	return &Stemmer{langDetector: detector}
 }
 
 func (s *Stemmer) StemWithLangDetection(text string) ([]string, error) {
-	lang, err := iso6391.DetectISO6391FromText(text)
+	language, err := s.langDetector.Detect(text)
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect language: %s", err)
+		return nil, fmt.Errorf("failed to detect language: %w", err)
 	}
-	s.language = &lang
-
-	return s.Stem(text), nil
+	return s.Stem(text, language), nil
 }
 
-func (s *Stemmer) Stem(text string) []string {
-	words := RemoveStopWords(strings.Fields(text), *s.language)
-	words = stemText(words, *s.language)
-	return removeDuplicates(words)
+func (s *Stemmer) Stem(text string, language iso6391.ISO6391) []string {
+	words := strings.Fields(text)
+	words = RemoveStopWords(words, language)
+	return stemWords(words, language)
 }
 
-func stemText(words []string, language iso6391.ISO6391) []string {
-	stemmedWords := make([]string, 0, len(words))
+func stemWords(words []string, language iso6391.ISO6391) []string {
+	result := make([]string, 0, len(words))
 
 	for _, word := range words {
-		if stemmed, err := snowball.Stem(word, language.Name(), true); err != nil {
-			stemmedWords = append(stemmedWords, word)
-		} else {
-			stemmedWords = append(stemmedWords, stemmed)
+		stemmed, err := snowball.Stem(word, language.Name(), true)
+		if err != nil {
+			result = append(result, word) // fallback: use original word if stemming fails
+			continue
 		}
+		result = append(result, stemmed)
 	}
 
-	return removeDuplicates(stemmedWords)
+	return removeDuplicates(result)
 }
 
 func removeDuplicates(slice []string) []string {
