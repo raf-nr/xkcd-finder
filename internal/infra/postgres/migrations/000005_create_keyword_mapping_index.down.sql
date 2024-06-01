@@ -1,0 +1,1 @@
+DROP INDEX idx_comic_keyword_mapping_id;

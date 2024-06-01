@@ -1,0 +1,4 @@
+CREATE TABLE keyword (
+    id SERIAL PRIMARY KEY,
+    keyword TEXT UNIQUE NOT NULL
+);

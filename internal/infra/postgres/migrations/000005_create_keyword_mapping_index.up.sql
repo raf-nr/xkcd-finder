@@ -1,0 +1,1 @@
+CREATE INDEX idx_comic_keyword_mapping_id ON comic_keyword_mapping(keyword_id, comic_id);
