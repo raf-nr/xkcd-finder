@@ -32,7 +32,7 @@ func (r *ComicServiceRepository) GetComic(ctx context.Context, id int) (comic.Co
 		return comic.Comic{}, fmt.Errorf("fetch comic failed: %w", err)
 	}
 
-	comicFinal, err := r.generator.NewComic(comicRaw.Img, comicRaw.Description(), r.cfg.Language)
+	comicFinal, err := r.generator.NewComic(comicRaw.Num, comicRaw.Img, comicRaw.Description(), r.cfg.Language)
 	if err != nil {
 		return comic.Comic{}, fmt.Errorf("generate comic failed: %w", err)
 	}
