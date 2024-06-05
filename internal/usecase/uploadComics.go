@@ -14,7 +14,6 @@ type ComicServiceRepository interface {
 
 type ComicRepository interface {
 	Save(ctx context.Context, comic comic.Comic) error
-	GetComics(ctx context.Context) ([]comic.Comic, error)
 	GetComicsIDs(ctx context.Context) ([]int, error)
 }
 
