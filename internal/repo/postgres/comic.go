@@ -3,9 +3,11 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/lib/pq"
 	"github.com/raf-nr/xkcd-finder/internal/domain/comic"
 )
 
@@ -17,6 +19,29 @@ func NewComicRepository(db *sql.DB) *ComicRepository {
 	return &ComicRepository{
 		db: db,
 	}
+}
+
+func (r *ComicRepository) GetComicsIDs(ctx context.Context) ([]int, error) {
+	rows, err := r.db.QueryContext(ctx, "SELECT id FROM comic")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []int
+	for rows.Next() {
+		var id int
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
 }
 
 func (r *ComicRepository) Save(ctx context.Context, c comic.Comic) error {
@@ -150,25 +175,66 @@ func (r *ComicRepository) insertComicKeywords(ctx context.Context, tx *sql.Tx, c
 	return err
 }
 
-func (r *ComicRepository) GetComicsIDs(ctx context.Context) ([]int, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id FROM comic")
+func (r *ComicRepository) FindTopComicsByKeywords(ctx context.Context, stemmed []string, limit uint) ([]comic.Comic, error) {
+	if len(stemmed) == 0 {
+		return nil, nil
+	}
+
+	query, args := buildTopComicsQuery(stemmed, limit)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var ids []int
+	return scanComics(rows)
+}
+
+func buildTopComicsQuery(keywords []string, limit uint) (string, []any) {
+	var (
+		placeholders = make([]string, len(keywords))
+		args         = make([]any, len(keywords)+1)
+	)
+
+	for i, word := range keywords {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = word
+	}
+
+	args[len(keywords)] = limit
+	limitPlaceholder := fmt.Sprintf("$%d", len(keywords)+1)
+
+	query := fmt.Sprintf(`
+		SELECT c.id, c.image_url, array_agg(k.keyword) AS keywords
+		FROM comic c
+		JOIN comic_keyword_mapping ckm ON c.id = ckm.comic_id
+		JOIN keyword k ON ckm.keyword_id = k.id
+		WHERE k.keyword IN (%s)
+		GROUP BY c.id
+		ORDER BY COUNT(*) DESC
+		LIMIT %s
+	`, strings.Join(placeholders, ","), limitPlaceholder)
+
+	return query, args
+}
+
+func scanComics(rows *sql.Rows) ([]comic.Comic, error) {
+	var results []comic.Comic
 	for rows.Next() {
-		var id int
-		if err := rows.Scan(&id); err != nil {
+		var c comic.Comic
+		var keywords []sql.NullString
+
+		if err := rows.Scan(&c.ID, &c.ImageURL, pq.Array(&keywords)); err != nil {
 			return nil, err
 		}
-		ids = append(ids, id)
-	}
 
-	if err := rows.Err(); err != nil {
-		return nil, err
+		for _, kw := range keywords {
+			if kw.Valid {
+				c.Keywords = append(c.Keywords, kw.String)
+			}
+		}
+		results = append(results, c)
 	}
-
-	return ids, nil
+	return results, rows.Err()
 }
