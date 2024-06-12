@@ -181,7 +181,6 @@ func (r *ComicRepository) FindTopComicsByKeywords(ctx context.Context, stemmed [
 	}
 
 	query, args := buildTopComicsQuery(stemmed, limit)
-
 	rows, err := r.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err

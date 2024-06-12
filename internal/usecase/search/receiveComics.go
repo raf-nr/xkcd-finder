@@ -18,17 +18,19 @@ type Stemmer interface {
 type ReceiveComicsUseCase struct {
 	comicRepo ComicRepository
 	stemmer   Stemmer
+	language  string
 }
 
-func NewReceiveComicsUseCase(comicRepo ComicRepository, stemmer Stemmer) *ReceiveComicsUseCase {
+func NewReceiveComicsUseCase(comicRepo ComicRepository, stemmer Stemmer, language string) *ReceiveComicsUseCase {
 	return &ReceiveComicsUseCase{
 		comicRepo: comicRepo,
 		stemmer:   stemmer,
+		language:  language,
 	}
 }
 
-func (uc *ReceiveComicsUseCase) Execute(ctx context.Context, query string, limit uint, language string) ([]comic.Comic, error) {
-	stemmedKeywords := uc.stemmer.Stem(query, language)
+func (uc *ReceiveComicsUseCase) Execute(ctx context.Context, query string, limit uint) ([]comic.Comic, error) {
+	stemmedKeywords := uc.stemmer.Stem(query, uc.language)
 
 	comics, err := uc.comicRepo.FindTopComicsByKeywords(ctx, stemmedKeywords, limit)
 	if err != nil {
