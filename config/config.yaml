@@ -1,0 +1,12 @@
+xkcd-service:
+  base-url: 'https://xkcd.com'
+  comic-info-path: '/info.0.json'
+  workers-amount: 15
+  language: 'en'
+
+http-server:
+  host: 'localhost'
+  port: 8080
+
+postgres:
+  dsn: 'postgres://xkcd_user:xkcd_pass@localhost:5432/xkcd_db?sslmode=disable'
